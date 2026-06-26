@@ -1,0 +1,5 @@
+anthropic
+pymupdf
+mysql-connector-python
+Pillow
+python-dotenv
