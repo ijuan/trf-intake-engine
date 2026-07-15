@@ -89,5 +89,19 @@ Date (in this section) -> patient_acknowledgment_date
 
 This form contains three separate date fields in different sections that must not be confused with one another. Name the date field in the Ordering Physician signature section exactly 'ordering_physician_date'. Name the date field in the Patient Acknowledgment signature section exactly 'patient_acknowledgment_date'. Name the date field in the Specimen Collection section exactly 'specimen_collection_date'. Do not use the generic key 'date' for any of these three fields.
 
-Additionally, create a separate JSON object called 'low_confidence_fields' that includes the field name and value for any field where your confidence score is below 0.9.
+Return your response as JSON matching exactly this structure:
+
+{
+  "extracted_fields": {
+    "practice_client_name": {"value": "...", "confidence": 0.0},
+    "ordering_physician_phone": {"value": "...", "confidence": 0.0}
+  },
+  "low_confidence_fields": [
+    {"field_name": "npi", "value": "...", "confidence": 0.0, "reason": "..."}
+  ]
+}
+
+Every field in extracted_fields must follow the {"value": ..., "confidence": ...} shape.
+low_confidence_fields must be a LIST of objects, each containing field_name, value, confidence, and reason.
+Include every field listed in the mapping above in extracted_fields, even if the value is "blank".
 """
