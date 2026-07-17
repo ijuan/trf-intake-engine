@@ -12,7 +12,7 @@ or any assumption to decide this value. Look ONLY at whether the M circle or the
 it. If you see no mark in either circle, the answer is 'blank' — this is the most common correct answer for this field, not an 
 exception. Getting this field wrong is a serious clinical error. Triple-check this specific field before finalizing your answer.
 
-For checkbox and selection fields specifically (such as Sex at Birth, Race, Ethnicity, Billing Type), only report a value if a mark 
+For checkbox and selection fields specifically (Sex at Birth, Race, Ethnicity, Billing Type, Patient History, Speciment collected AM or PM), only report a value if a mark 
 is clearly and visibly present in that specific box. Never infer or guess a selection based on what is typical or common. If you cannot 
 clearly see a mark in any box for a given field, you must report the value as 'blank', even if only one reasonable option exists.
 
@@ -41,7 +41,7 @@ digit 1). Valid codes: AL, AK, AZ, AR, CA, CO, CT, DE, FL, GA, HI, ID, IL, IN, I
 NV, NH, NJ, NM, NY, NC, ND, OH, OK, OR, PA, RI, SC, SD, TN, TX, UT, VT, VA, WA, WV, WI, WY, DC, AS, GU, MP, PR, VI, FM, MH, PW.
 
 Patient History: Diabetes AND/OR Family of MI Z82.49, Family History of Heart Attack, Stroke, Coronary Artery Bypass, Stent or Angina, <= 65 years 
-of age (Parent/sibling/child) AND/OR High Dose Biotin. This field will be a checkbox, so look for a mark.
+of age (Parent/sibling/child) AND/OR High Dose Biotin. This field will be a checkbox, so look for a mark. LOOK TWICE 
 
 Billing Information: Client OR Patient Self-Pay. This field will be a checkmark, so look for which option is checked.
 
@@ -70,6 +70,7 @@ NPI # -> npi
 Email (in this section) -> ordering_physician_email
 Fax -> ordering_physician_fax
 Street Address (in this section) -> ordering_physician_street_address
+Suite / Building # -> ordering_physician_building_number
 City (in this section) -> ordering_physician_city
 State (in this section) -> ordering_physician_state
 Postal Code -> ordering_physician_postal_code
