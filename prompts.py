@@ -33,6 +33,13 @@ only be one.
 Demographic: Race: White, Asian, Black/African American, Native America/Alaska Native, Native Hawaiian/Other Pacific Islander. Ethnicity: 
 Not Hispanic, Latino, Spanish OR Hispanic, Latino, Spanish.
 
+State fields (ordering_physician_state and patient_state): the value must be one of the following valid two-letter US state, 
+territory, or freely associated state codes. Do not report any value outside this list; if the handwritten abbreviation does not 
+clearly match one of these, choose the closest valid match rather than transcribing individual characters literally (for example, 
+a handwritten mark that looks like "F1" or "Fl" should be read as the valid state code 'FL', since no state code contains the 
+digit 1). Valid codes: AL, AK, AZ, AR, CA, CO, CT, DE, FL, GA, HI, ID, IL, IN, IA, KS, KY, LA, ME, MD, MA, MI, MN, MS, MO, MT, NE, 
+NV, NH, NJ, NM, NY, NC, ND, OH, OK, OR, PA, RI, SC, SD, TN, TX, UT, VT, VA, WA, WV, WI, WY, DC, AS, GU, MP, PR, VI, FM, MH, PW.
+
 Patient History: Diabetes AND/OR Family of MI Z82.49, Family History of Heart Attack, Stroke, Coronary Artery Bypass, Stent or Angina, <= 65 years 
 of age (Parent/sibling/child) AND/OR High Dose Biotin. This field will be a checkbox, so look for a mark.
 
