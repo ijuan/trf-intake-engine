@@ -45,14 +45,17 @@ trf_extraction_prompt: |
   NV, NH, NJ, NM, NY, NC, ND, OH, OK, OR, PA, RI, SC, SD, TN, TX, UT, VT, VA, WA, WV, WI, WY, DC, AS, GU, MP, PR, VI, FM, MH, PW.
 
   Patient History: Diabetes AND/OR Family of MI Z82.49, Family History of Heart Attack, Stroke, Coronary Artery Bypass, Stent or Angina, <= 65 years 
-  of age (Parent/sibling/child) AND/OR High Dose Biotin. This field will be a checkbox, so look for a mark. LOOK TWICE 
+  of age (Parent/sibling/child) AND/OR High Dose Biotin. This field will be a checkbox, so look for a mark. LOOK TWICE For each of these three checkboxes, 
+  report the value as exactly the word 'checked' if a mark is present, or exactly the word 'blank' if it is not. Do not use any other word such as 'marked', 'yes', or 'X'.
 
   Billing Information: Client OR Patient Self-Pay. This field will be a checkmark, so look for which option is checked.
 
   Test Requested: 1003 SmartVascular DX (SVDx) OR 1028 Expanded Lipid Profile (ELP) OR 1003/1028 SmartVascular DX and ELP Panel. This field will 
   be a checkmark, so look for which test is checked.
 
-  Specimen Collection: Date Collected in MM/DD/YYYY, Time (AM or PM marked), Collected by (please print).
+  Specimen Collection: Date Collected in MM/DD/YYYY, Time, Collected by (please print). For Time, return the complete clock time and the AM/PM marker together as one 
+  single value, for example '9:56 PM'. Never return only 'AM' or only 'PM' without the time, and never return only the time without the AM/PM marker. If a time is written 
+  but neither AM nor PM is marked, return just the time. If no time is written at all, return 'blank'.
 
   Ordering Physician Signature/Attestation: Just note if a signature is there, then say 'Signature collected'; if not, say 'Signature not collected'. 
   Date in MM/DD/YYYY.
