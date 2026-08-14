@@ -1,0 +1,162 @@
+# TRF Intake Engine
+
+Automated extraction pipeline for scanned medical Test Requisition Forms (TRFs). Reads PDFs from a folder, extracts handwritten field data using Claude, validates it, and loads it into MySQL for lab technician review.
+
+---
+
+## Setup
+
+**1. Install dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+**2. Create the database**
+
+```bash
+mysql -u root -p < schema.sql
+```
+
+This creates the `trf_intake_engine` database and all three tables. Run order matters — `extracted_data` must exist before the other two, since they hold foreign keys pointing at it. `schema.sql` is the single source of truth for the schema; don't create or alter tables by hand.
+
+**3. Create a `.env` file** in the repo root (gitignored — never commit it):
+
+```
+ANTHROPIC_API_KEY=your_key_here
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=trf_intake_engine
+```
+
+**4. Point `config.yaml` at your PDF folder**
+
+```yaml
+input_folder: "/path/to/trf files"
+```
+
+---
+
+## Running it
+
+```python
+summary = read_all_trf_files(config["input_folder"])
+```
+
+Processes every `.pdf` in the folder and returns:
+
+```python
+{
+    "inserted": {"Form 1": 1, "Form 2": 2},   # filename -> form_id
+    "failed":   {"Form 3": "reason..."}        # filename -> why it didn't land
+}
+```
+
+Cost is roughly **$0.066 per form** (two API calls each), about 15 forms per dollar.
+
+⚠️ Editing `config.yaml` requires a **Jupyter kernel restart** before the change takes effect, then re-running every cell in order.
+
+---
+
+## Configuration
+
+Everything tunable lives in `config.yaml` — the code itself should not need editing to change behavior.
+
+| Key | What it does |
+|---|---|
+| `trf_extraction_prompt` | The full extraction prompt sent to Claude, as a YAML block scalar |
+| `input_folder` | Directory the pipeline scans for PDFs |
+| `model` | Which Claude model to call |
+
+Credentials live in `.env`, never in `config.yaml`, because `config.yaml` is committed and `.env` is not.
+
+---
+
+## How it works
+
+```
+PDF folder
+   └─> read_all_trf_files()
+         └─> two_pass_extraction()      extract twice, compare
+               └─> read_trf()           one Claude call per pass
+         └─> convert_to_json()          date standardization + Pydantic validation
+         └─> insert_extracted_data()    parent row, returns form_id
+         └─> insert_icd10_codes()       one row per marked code
+         └─> insert_flagged_fields()    one row per field needing review
+```
+
+### Why two passes instead of confidence scores
+
+The original design asked Claude to self-report a confidence score per field. **This was tested and abandoned** — the scores do not correlate with accuracy. A wrong `sex_at_birth` scored 0.95; a wrong physician last name scored 0.65; correct values scored anywhere from 0.65 to 0.85. The signal was noise.
+
+The replacement: call the extraction **twice with identical input** and compare field by field. Fields where both passes agree are trusted and written to `extracted_data`. Fields where they disagree are excluded and written to `flagged_fields` with **both** candidate values, for a human to resolve.
+
+Independence is what makes the disagreement meaningful. A "proofreader" second call that is shown the first answer was rejected during design — it anchors on the answer it's given and rubber-stamps it.
+
+Two passes is also **cheaper** than what it replaced: 2 calls versus the old 3-call retry loop that fired on nearly every run.
+
+### Prompt changes that measurably helped
+
+Kept here so they don't get undone by someone tidying the prompt:
+
+- **Explicit field-boundary instruction** — stopped adjacent fields bleeding into each other
+- **Isolation framing for `sex_at_birth`** — Claude was inferring sex from the patient's first name rather than reading the checkbox. Telling it to read that box in complete isolation from all other fields fixed it.
+- **Explicit JSON skeleton** — stopped structural drift in the response
+- **Explicit label → snake_case key mapping** — stopped key-name drift and disambiguated the three separate date fields
+- **State-code whitelist** — fixed `Fl` being read as `F1`
+- **Fixed vocabulary for checkboxes** (`checked` / `blank`) — the passes were disagreeing purely because Claude picked a different synonym each time
+
+Sonnet 5 corrected every field that Haiku 4.5 misread. Downgrading the model is not recommended.
+
+---
+
+## Schema
+
+**`extracted_data`** — one row per form. `form_id` is an auto-incrementing primary key.
+
+`form_id` is deliberately **not** `medical_record_number`. MRN can be blank on a form, and can itself land in `flagged_fields` if the two passes disagree on it — so it cannot be relied on as a key. An auto-incrementing integer doesn't depend on handwriting recognition at all.
+
+**`icd10_codes`** — one row per ICD-10 code marked on page 2. Unmarked codes are not stored. A form with no marked codes simply has no rows here.
+
+**`flagged_fields`** — one row per field needing human review, with both candidate values.
+
+`icd10_other` (the handwritten "Other" write-in on page 2) lives in `extracted_data`, not `icd10_codes`, because it is one value per form. Putting it in `icd10_codes` would require inventing a row with an empty `code` for any form that has a write-in but no marked codes.
+
+---
+
+## Known gaps
+
+These are real and known. Read before building on top of this.
+
+**1. Re-running duplicates data.** There is no deduplication or upsert. Running the pipeline twice on the same folder inserts every form again under new `form_id`s. Nothing detects a form already in the database.
+
+**2. Flagged fields have no resolution path.** Disagreements are recorded, but there is no column or function for a technician to choose the correct value and write it back to `extracted_data`. **This blocks frontend work** — the "!" review button has nothing to submit to. A `resolved` status column and an update function are needed, and that's a schema decision that should be made before a frontend is built against this.
+
+**3. Format validation rules were never built.** This was always intended as the second half of the flagging strategy: two-pass catches *inconsistent* reads, format rules catch *invalid* ones. Without them, a value both passes agree on is trusted even when it's obviously malformed. Observed in testing: an `npi` of `1172` (four digits — NPI is ten) and `TANYA-NPI` (not numeric) were both stored without any flag.
+
+Rules intended: NPI = 10 digits, zip = 5 digits, phone = 10 digits, valid two-letter state code, dates parse and fall in the past, `sex_at_birth` in M/F/blank, plus known value sets for `billing_type`, `test_requested`, `race`, `ethnicity`, and the signature statuses.
+
+The agreed design was to apply these **inside `two_pass_extraction` at the comparison point** — a field enters `extracted_data` only if both passes agree *and* the value is well-formed. Note that when both passes agree on a malformed value there is only one distinct value to show a reviewer, so `form_1_value` and `form_2_value` would be identical; a `flag_reason` column was considered for this and deliberately not added.
+
+**4. The two-page flow has not been tested end to end.** Page 1 and page 2 have each been tested separately, using single-page test PDFs. A real combined two-page form has never been run through. This is the actual production case.
+
+**5. Crossed-out text is handled inconsistently.** When part of a field is struck through, some runs correctly return only the surviving text and others return the whole string including the struck-out portion. It is not yet established whether Claude fails to *see* the strikethrough (a vision limit, unfixable by prompting) or sees it and mishandles it (fixable). The diagnostic: upload the page alone and ask Claude to describe exactly what marks it sees on that field.
+
+**6. Plausible-but-wrong values are not caught, by design.** If both passes misread a name or address the same way, and the result is well-formed, nothing flags it. Format rules catch invalid values; two-pass catches inconsistent ones; neither catches a consistent, valid-looking misread. Human review is the intended backstop. This is inherent to handwriting extraction and should be stated to stakeholders rather than treated as a bug.
+
+---
+
+## Approaches considered and rejected
+
+- **Address-validation API** — auto-correcting a patient address risks sending reports to the wrong place. A wrong-but-plausible corrected address is worse than a flagged one.
+- **Proofreader-style second call** — showing Claude its first answer and asking it to check the work. It anchors on the answer provided and confirms it.
+- **Reviewing every field manually** — defeats the purpose of automating intake.
+
+---
+
+## Notes for whoever picks this up
+
+- Test PDFs are synthetic. No real patient data has been used at any point.
+- Notebook cell outputs are a credential-leak vector — an API key was once printed to a cell and committed. `nbstripout` is worth installing (`pip install nbstripout && nbstripout --install`) to strip outputs automatically before every commit.
+- `main.ipynb` is a Jupyter notebook, so **execution order matters more than position in the file**. After any kernel restart, run all cells in order.

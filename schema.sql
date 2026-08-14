@@ -4,6 +4,7 @@
 CREATE DATABASE IF NOT EXISTS trf_intake_engine;
 USE trf_intake_engine;
 
+-- Parent table: one row per processed form
 CREATE TABLE extracted_data (
     form_id INT AUTO_INCREMENT PRIMARY KEY,
     practice_client_name VARCHAR(255),
@@ -48,12 +49,14 @@ CREATE TABLE extracted_data (
     icd10_other VARCHAR(255)
 );
 
+-- One row per ICD-10 code marked on page 2
 CREATE TABLE icd10_codes (
     form_id INT,
     code VARCHAR(255),
     FOREIGN KEY (form_id) REFERENCES extracted_data(form_id)
 );
 
+-- One row per field needing lab-tech review
 CREATE TABLE flagged_fields (
     form_id INT,
     flagged_field VARCHAR(255),
